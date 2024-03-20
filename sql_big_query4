@@ -1,0 +1,35 @@
+SELECT
+  DATE(TIMESTAMP_MICROS(event_timestamp)) AS event_date,
+  device.category AS dev_category,
+  traffic_source.source AS source,
+  traffic_source.medium AS medium,
+  traffic_source.name AS campaign,
+  event_name,
+  user_pseudo_id AS us_id,
+  COUNT(DISTINCT CONCAT(user_pseudo_id, CAST(ses_id AS STRING))) AS user_ses_count,
+  MAX(CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS INT64)) AS ga_session_id
+FROM (
+  SELECT 
+    user_pseudo_id,
+    (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS ses_id,
+    event_timestamp,
+    event_name,
+    device,
+    traffic_source,
+    event_params
+  FROM 
+    `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_2021*`
+  WHERE
+    event_name IN ('session_start', 'view_item', 'add_to_cart', 'begin_checkout', 'add_shipping_info', 'add_payment_info', 'purchase')
+    AND _TABLE_SUFFIX <= '20211231'
+  
+)
+GROUP BY
+  event_date,
+  dev_category, 
+  source,
+  medium,
+  campaign,
+  us_id,
+  event_name
+LIMIT 100;
